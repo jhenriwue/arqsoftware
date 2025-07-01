@@ -1,10 +1,8 @@
-# ADR 0003: Plugin Architecture for Communication Platform Integration
+# Plugin Architecture for Communication Platform Integration
 
 **Owner:** @gims-architecture-team  
-**Status:** Proposed  
-**Created:** 2025-07-01  
-**Review Date:** 2025-07-08  
-**Issue:** #gims-backend-003
+**Created:** 2025-06-28  
+**Review Date:** 2025-07-03  
 
 ---
 
@@ -82,3 +80,6 @@ All communication with third-party messaging platforms will be mediated through 
 - [FastAPI Dependency Injection Patterns](https://fastapi.tiangolo.com/tutorial/dependencies/)
 - [Google Groups API docs](https://developers.google.com/admin-sdk/groups-settings/)
 - [discord.py docs](https://discordpy.readthedocs.io/en/stable/)
+- ISO/IEC/IEEE 42010 – Architectural Description  
+- Appwrite Realtime API RFC #014 (inspiration): https://github.com/appwrite/rfc/blob/main/014-realtime-api.md  
+- João Arthur Brunet, “O Modelo de RFC para documentação arquitetural”, Jun 12, 2025  
