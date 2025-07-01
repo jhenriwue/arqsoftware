@@ -1,105 +1,84 @@
-# ADR 0003: Plugin-Based Communication Integration Architecture
+# ADR 0003: Plugin Architecture for Communication Platform Integration
 
-**Implementation Owner:** @gims-architecture-team  
-**Start Date:** 2025-07-01  
-**Target Date:** 2025-07-08  
-**Internal Issue:** GIMS-BACKEND-003
-
----
-
-## Summary
-
-To support seamless integration with multiple communication platforms in GIMS, we evaluated two main approaches:
-
-1. **Proposal A (chosen):** Implement a plugin-based architecture for communication integrations, enabling support for platforms like Discord and Gmail (Google Groups) via clearly defined interfaces.
-2. **Proposal B (rejected):** Develop each integration directly in the core backend codebase, adding platform support case-by-case.
-
-We selected Proposal A for its scalability, maintainability, and flexibility, reducing coupling and enabling independent evolution of integrations.
+**Owner:** @gims-architecture-team  
+**Status:** Proposed  
+**Created:** 2025-07-01  
+**Review Date:** 2025-07-08  
+**Issue:** #gims-backend-003
 
 ---
 
-## 1. Context & Problem Statement
+## Overview
 
-As GIMS aims to automate group/channel creation across diverse communication platforms (e.g., Discord, Gmail/Google Groups, and potentially Slack, WhatsApp, etc.), a robust and adaptable integration approach is required.
-
-> **In the context of** expanding GIMS to support current and future communication platforms,  
-> **facing** the need for scalable, maintainable, and independently deployable integrations,  
-> **we decided** to adopt a plugin-based abstraction for all communication services,  
-> **and neglected** hard-coding integrations in the backend,  
-> **to achieve** easy extensibility and reduce maintenance burden,  
-> **accepting** the trade-off of a slightly more complex interface contract and plugin management.
+GIMS must interact with several external communication systems (e.g., Discord, Google Groups) and may need to support more platforms in the future. This document records the decision to formalize and modularize those integrations using a plugin architecture.
 
 ---
 
-## 2. Decision Drivers
+## Context
 
-- **Extensibility:** Need to add new communication platforms with minimal changes to the core backend.
-- **Maintainability:** Keep core logic independent from platform-specific implementations.
-- **Decoupling:** Allow plugin development and deployment independent from the main system.
-- **Consistency:** Enforce a standard contract/interface for all plugins.
-- **User Choice:** Empower organizations to select preferred communication channels.
+The core requirement is to automatically manage communication channels and their memberships, based on the data coming from a university or corporate management system.  
+Initially, GIMS connects with Discord and Google Groups, but stakeholders foresee the need to support more tools (such as Slack or Teams).  
+Previously, each integration was handled ad hoc—tightly coupled in the backend codebase—which made code harder to extend and maintain as new communication tools were requested.
 
 ---
 
-## 3. Design Proposal
+## Decision
 
-### Proposal A (chosen)
+**We will create a plugin system for communication integrations.**  
+All communication with third-party messaging platforms will be mediated through a well-defined internal plugin interface, designed for easy expansion.
 
-- Define a **standard interface** (e.g., Python abstract base class) for plugins to implement, including methods like `create_group`, `add_member`, `remove_member`, `send_message`, etc.
-- Plugins for Discord, Gmail/Google Groups, and future platforms implement this interface and are **registered** with the backend.
-- The backend **loads** and **invokes** plugins dynamically based on configuration and user/admin choices.
-- Each plugin handles its own API credentials, error handling, and mapping to platform-specific concepts (e.g., “group” in Gmail vs. “channel” in Discord).
+- Each supported platform (Discord, Google Groups, etc) will have its own plugin, implementing the standard interface.
+- The core backend will dynamically load and dispatch actions (create group, add/remove member, post message) to the relevant plugin(s), depending on the admin/user’s choices.
+- The plugin interface will encapsulate all necessary actions and error handling for platform communication.
+- New integrations can be added as separate modules, without requiring changes to core backend logic.
 
-### Proposal B (rejected)
-
-- Implement all communication platform logic directly in the backend service code.
-- Each new integration requires core code changes, increased testing burden, and risk of regression.
-
----
-
-## 4. Alternatives Considered
-
-| Alternative                           | Pros                                        | Cons                                                      | Decision   |
-|----------------------------------------|---------------------------------------------|-----------------------------------------------------------|------------|
-| Monolithic integration in backend      | Simpler for very few platforms              | Poor scalability, code bloat, hard to maintain            | Rejected   |
-| Separate microservice per integration  | High isolation, independent deployment      | Higher operational complexity, more inter-service comm.    | Considered |
-| Plugin-based (selected)                | Flexible, consistent, easy to extend        | Plugin interface contract must be stable, versioning       | Chosen     |
+**Why:**  
+- Allows support for new platforms without changing backend business logic.
+- Improves maintainability, testability, and code clarity.
+- Simplifies third-party credential and API management.
 
 ---
 
-## 5. Consequences
+## Considered Alternatives
 
-- **✔️ High extensibility:** New platforms can be supported via plugins, reducing time-to-market for integrations.
-- **✔️ Maintainability:** Platform-specific code lives outside the core, enabling focused testing and updates.
-- **⚠️ Interface evolution:** Careful management needed when changing the core plugin interface.
-- **❗ Plugin loading:** Secure and reliable plugin loading mechanisms must be ensured to prevent misconfiguration or abuse.
-
----
-
-## 6. RACI
-
-| Activity                                  | Responsible          | Accountable         | Consulted         | Informed         |
-|--------------------------------------------|----------------------|---------------------|-------------------|------------------|
-| Define plugin interface/contract           | Backend Dev Team     | Lead Architect      | Integrations Team | Product Owner    |
-| Implement Discord & Gmail plugins          | Integration Devs     | Backend Lead        | QA, Sec. Review   | Support Team     |
-| Document plugin system for new platforms   | Backend Dev Team     | Tech Writer         | QA, DevOps        | New Integrators  |
-| Manage plugin registration/config          | Backend Devs         | DevOps Lead         | QA                | Admin Users      |
+| Approach                                      | Advantages                                                | Drawbacks                                  | Status      |
+|------------------------------------------------|-----------------------------------------------------------|---------------------------------------------|-------------|
+| All integrations in backend code (monolith)    | Quick for small N, simple at first                        | Unmanageable as N grows, tightly coupled   | Rejected    |
+| Standalone microservices per integration       | Service isolation, fault containment                      | Higher infra and ops burden                | Not chosen  |
+| **Plugin system (chosen)**                     | Modular, scalable, keeps backend clean, easier for tests  | Requires good interface/version control     | **Chosen**  |
 
 ---
 
-## 7. Unresolved Questions
+## Consequences
 
-- How will plugin versioning and compatibility be managed over time?
-- Should plugins run in-process or as separate microservices for security/isolation?
-- What is the best mechanism for organizations to contribute or customize their own plugins?
+- Adding new communication tools (Slack, Teams, etc) becomes straightforward—just implement a new plugin, register it, and configure.
+- Teams responsible for integrations can develop and test plugins in isolation from backend feature work.
+- Plugin failures or misconfigurations are isolated from core system stability.
+- Extra care needed for interface versioning and backward compatibility as plugins evolve.
+- Security reviews required before enabling third-party/community plugins in production.
 
 ---
 
-## 8. References
+## Implementation Notes
 
-- [Python Plugin Patterns (Real Python)](https://realpython.com/python-plugins/)
-- [Pluggy (pytest’s plugin system)](https://pluggy.readthedocs.io/en/latest/)
-- [Google Groups API](https://developers.google.com/admin-sdk/groups-settings/)
-- [Discord.py Documentation](https://discordpy.readthedocs.io/)
-- ISO/IEC/IEEE 42010 – Architectural Description
+- The base interface will be defined in Python using `abc.ABC` and clear method contracts (`create_group`, `add_member`, etc).
+- Plugin discovery can use setuptools entry points, config files, or explicit registration.
+- Each plugin manages its own secrets/config, never exposing credentials to the core or to other plugins.
+- Plugins should be stateless where possible; any stateful resource management must be documented.
 
+---
+
+## Open Questions
+
+- Should plugins run in-process, or do we allow out-of-process plugins for extra isolation?
+- What’s the update policy for plugins—must they be backward compatible or can we version the plugin interface?
+- Will organizations be able to author and run their own plugins securely?
+
+---
+
+## References
+
+- [Pluggy](https://pluggy.readthedocs.io/en/latest/)
+- [FastAPI Dependency Injection Patterns](https://fastapi.tiangolo.com/tutorial/dependencies/)
+- [Google Groups API docs](https://developers.google.com/admin-sdk/groups-settings/)
+- [discord.py docs](https://discordpy.readthedocs.io/en/stable/)
